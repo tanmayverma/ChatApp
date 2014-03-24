@@ -2,7 +2,7 @@
 import socket, select, string, sys
  
 def prompt() :
-    sys.stdout.write('<You> ')
+    #sys.stdout.write('<You> ')
     sys.stdout.flush()
  
 #main function
@@ -25,8 +25,8 @@ if __name__ == "__main__":
         print 'Unable to connect'
         sys.exit()
      
-    print 'Connected to remote host. Start sending messages'
-    prompt()
+    #print 'Connected to remote host. Start sending messages'
+    #prompt()
      
     while 1:
         socket_list = [sys.stdin, s]
@@ -49,5 +49,5 @@ if __name__ == "__main__":
             #user entered a message
             else :
                 msg = sys.stdin.readline()
-                s.send(msg)
+                s.send(msg[:-1])
                 prompt()
