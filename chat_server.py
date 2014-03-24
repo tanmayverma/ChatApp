@@ -65,6 +65,20 @@ if __name__ == "__main__":
                     # a "Connection reset by peer" exception will be thrown
                     data = sock.recv(RECV_BUFFER)
                     if data:
+			if data.strip() == "/quit":
+				if CONNECTION_LIST[sock].has_key("room"):
+					room = CONNECTION_LIST[sock]["room"]
+					broadcast_data(sock,"* user has left %s: %s\n" % (room,CONNECTION_LIST[sock]["name"]),room)
+					private_message(sock,"* user has left %s: %s (** this is you)\n" % (room,CONNECTION_LIST[sock]["name"]))
+					del CONNECTION_LIST[sock]["room"]
+					rooms[room] = rooms[room] - 1
+				private_message(sock, "BYE\n")
+				if CONNECTION_LIST[sock].has_key("name"):
+					del usernames[CONNECTION_LIST[sock]["name"]]
+                   		sock.close()
+				del CONNECTION_LIST[sock]
+				continue
+
 			if CONNECTION_LIST[sock]["state"] == "connecting":
 				if(usernames.has_key(data)):
 					private_message(sock, "Sorry, Name Taken\nLogin Name?\n")
