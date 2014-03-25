@@ -72,6 +72,8 @@ if __name__ == "__main__":
                     #In Windows, sometimes when a TCP program closes abruptly,
                     # a "Connection reset by peer" exception will be thrown
                     data = sock.recv(RECV_BUFFER)
+		    #if len(data)>1:
+		    	#data = data[:-1]
                     if data:
 			if data.strip() == "/quit":
 				if CONNECTION_LIST[sock].has_key("room"):
@@ -88,6 +90,7 @@ if __name__ == "__main__":
 				continue
 
 			if CONNECTION_LIST[sock]["state"] == "connecting":
+				data = data.strip()
 				if(usernames.has_key(data)):
 					private_message(sock, "Sorry, Name Taken\nLogin Name?\n")
 				else:
@@ -171,7 +174,7 @@ if __name__ == "__main__":
 						del CONNECTION_LIST[sock]["room"]
 						rooms[room] = rooms[room] - 1	
 					else: 
-                        			broadcast_data(server_socket, "%s: %s\n" % (CONNECTION_LIST[sock]["name"], data),CONNECTION_LIST[sock]["room"], CONNECTION_LIST[sock]["blocked_by"] )
+                        			broadcast_data(server_socket, "%s: %s\n" % (CONNECTION_LIST[sock]["name"], data.strip()),CONNECTION_LIST[sock]["room"], CONNECTION_LIST[sock]["blocked_by"] )
 				else:
 					if data.strip() == "/rooms":
 						reply = 'Active rooms are:\n'
