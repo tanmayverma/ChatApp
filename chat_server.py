@@ -64,14 +64,11 @@ if __name__ == "__main__":
                 sockfd, addr = server_socket.accept()
 		private_message(sockfd, "Welcome to Tanmay's Chatserver\nLogin Name?\n")
                 CONNECTION_LIST[sockfd]={"state":"connecting"}
-		#print sockfd
-                #print "Client (%s, %s) connected" % addr
-                #broadcast_data(sockfd, "[%s:%s] entered room\n" % addr)
              
             #Some incoming message from a client
             else:
                 # Data recieved from client, process it
-                #try:
+                try:
                     #In Windows, sometimes when a TCP program closes abruptly,
                     # a "Connection reset by peer" exception will be thrown
                     data = sock.recv(RECV_BUFFER)
@@ -101,6 +98,9 @@ if __name__ == "__main__":
 					CONNECTION_LIST[sock]["blocked_by"] = []
 			elif CONNECTION_LIST[sock]["state"] == "connected":
 				if data.strip().split()[0] == "/block":
+					if len(data.strip().split())!=2:
+						private_message(sock,"Usage: /block <name>\n")
+						continue
 					to_block = data.strip().split()[1]
 					if to_block == CONNECTION_LIST[sock]["name"]:
 						private_message(sock,"Sorry! You can't block/unblock yourself\n")
@@ -119,8 +119,11 @@ if __name__ == "__main__":
 						private_message(sock,"No user with the name %s\n" % to_block)
 						continue
 				if data.strip().split()[0] == "/unblock":
+					if len(data.strip().split())!=2:
+                                                private_message(sock,"Usage: /unblock <name>\n")
+                                                continue
 					to_unblock = data.strip().split()[1]
-					if to_block == CONNECTION_LIST[sock]["name"]:
+					if to_unblock == CONNECTION_LIST[sock]["name"]:
                                                 private_message(sock,"Sorry! You can't block/unblock yourself\n")
                                                 continue
 					if usernames.has_key(to_unblock):
@@ -137,6 +140,28 @@ if __name__ == "__main__":
                                         else:
                                                 private_message(sock,"No user with the name %s\n" % to_block)
                                                 continue
+				if data.strip().split()[0] == "/message":
+					if len(data.strip().split())<3:
+                                                private_message(sock,"Usage: /message <user> <text>\n")
+                                                continue
+					reciever = data.strip().split()[1]
+					if reciever == CONNECTION_LIST[sock]["name"]:
+                                                private_message(sock,"Sorry! You can't message yourself\n")
+                                                continue
+					if usernames.has_key(reciever):
+                                                for user in CONNECTION_LIST.keys():
+                                                        if CONNECTION_LIST[user]["name"] == reciever:
+                                                                if CONNECTION_LIST[user]["name"] not in CONNECTION_LIST[sock]["blocked_by"]:
+									message = "Private Message from %s:" % CONNECTION_LIST[sock]["name"]
+                                                                        private_message(user,"Private Message from %s: %s\n" % (CONNECTION_LIST[sock]["name"]," ".join(data.strip().split()[2:])))
+                                                                else:
+                                                                        private_message(sock,"%s has blocked you!\n" % reciever)
+                                                                break
+                                                continue
+                                        else:
+                                                private_message(sock,"No user with the name %s\n" % reciever)
+                                                continue
+
 						 
 				if CONNECTION_LIST[sock].has_key("room"):
 					if data.strip() == "/leave":
@@ -174,8 +199,8 @@ if __name__ == "__main__":
 						else:
 							rooms[room] = 1
 							CONNECTION_LIST[sock]["room"] = room
-                #except:
-			#cleanup(sock)
-                        #continue
+                except:
+			cleanup(sock)
+                        continue
      
     server_socket.close()
