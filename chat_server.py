@@ -3,12 +3,12 @@
 import socket, select
  
 #Function to broadcast chat messages to all connected clients
-def broadcast_data (sock, message, room):
+def broadcast_data (sock, message, room, blocked_by_list):
     #Do not send the message to master socket and the client who has send us the message
     for socket in CONNECTION_LIST.keys():
         if socket != server_socket and socket != sock :
 		if(CONNECTION_LIST[socket]["state"] == "connected" and CONNECTION_LIST[socket].has_key("room")) :
-			if CONNECTION_LIST[socket]["room"] == room:
+			if CONNECTION_LIST[socket]["room"] == room and CONNECTION_LIST[socket]["name"] not in blocked_by_list:
 				if(private_message(socket, message) == False):
 					del CONNECTION_LIST[socket]
 
@@ -18,8 +18,19 @@ def private_message(socket, message):
 		return True
             except :
                 # broken socket connection may be, chat client pressed ctrl+c for example
-                socket.close()
+		cleanup(socket)
 		return False
+
+def cleanup(sock):
+	if CONNECTION_LIST[sock].has_key("room"):
+		room = CONNECTION_LIST[sock]["room"]
+                broadcast_data(sock,"* user has left %s: %s\n" % (room,CONNECTION_LIST[sock]["name"]),room, [])
+                del CONNECTION_LIST[sock]["room"]
+                rooms[room] = rooms[room] - 1
+	if CONNECTION_LIST[sock].has_key("name"):
+        	del usernames[CONNECTION_LIST[sock]["name"]]
+        sock.close()
+        del CONNECTION_LIST[sock]
  
 if __name__ == "__main__":
      
@@ -68,7 +79,7 @@ if __name__ == "__main__":
 			if data.strip() == "/quit":
 				if CONNECTION_LIST[sock].has_key("room"):
 					room = CONNECTION_LIST[sock]["room"]
-					broadcast_data(sock,"* user has left %s: %s\n" % (room,CONNECTION_LIST[sock]["name"]),room)
+					broadcast_data(sock,"* user has left %s: %s\n" % (room,CONNECTION_LIST[sock]["name"]),room, [])
 					private_message(sock,"* user has left %s: %s (** this is you)\n" % (room,CONNECTION_LIST[sock]["name"]))
 					del CONNECTION_LIST[sock]["room"]
 					rooms[room] = rooms[room] - 1
@@ -87,16 +98,55 @@ if __name__ == "__main__":
 					private_message(sock, "Welcome, %s!\n" % CONNECTION_LIST[sock]["name"])
 					usernames[data] = 0
 					CONNECTION_LIST[sock]["state"]="connected"
+					CONNECTION_LIST[sock]["blocked_by"] = []
 			elif CONNECTION_LIST[sock]["state"] == "connected":
+				if data.strip().split()[0] == "/block":
+					to_block = data.strip().split()[1]
+					if to_block == CONNECTION_LIST[sock]["name"]:
+						private_message(sock,"Sorry! You can't block/unblock yourself\n")
+                                                continue
+					if usernames.has_key(to_block):
+						for user in CONNECTION_LIST.keys():
+							if CONNECTION_LIST[user]["name"] == to_block:
+								if CONNECTION_LIST[sock]["name"] not in CONNECTION_LIST[user]["blocked_by"]:
+									CONNECTION_LIST[user]["blocked_by"].append(CONNECTION_LIST[sock]["name"])
+									private_message(sock,"%s has been blocked! To unblock use the following command /unblock <name>\n" % to_block)
+								else:
+									private_message(sock,"%s has been blocked by you already! To unblock use the following command /unblock <name>\n" % to_block)
+								break
+						continue
+					else:
+						private_message(sock,"No user with the name %s\n" % to_block)
+						continue
+				if data.strip().split()[0] == "/unblock":
+					to_unblock = data.strip().split()[1]
+					if to_block == CONNECTION_LIST[sock]["name"]:
+                                                private_message(sock,"Sorry! You can't block/unblock yourself\n")
+                                                continue
+					if usernames.has_key(to_unblock):
+                                                for user in CONNECTION_LIST.keys():
+                                                        if CONNECTION_LIST[user]["name"] == to_unblock:
+								if CONNECTION_LIST[sock]["name"] in CONNECTION_LIST[user]["blocked_by"]:
+                                                                	CONNECTION_LIST[user]["blocked_by"].remove(CONNECTION_LIST[sock]["name"])
+                                                                	private_message(sock,"%s has been unblocked! To block use the following command /block <name>\n" % to_unblock)
+                                                                	break
+								else:
+									private_message(sock,"%s hasn't been blocked by you! To block use the following command /block <name>\n" % to_unblock)
+                                                                        break
+                                                continue
+                                        else:
+                                                private_message(sock,"No user with the name %s\n" % to_block)
+                                                continue
+						 
 				if CONNECTION_LIST[sock].has_key("room"):
 					if data.strip() == "/leave":
 						room = CONNECTION_LIST[sock]["room"]
-						broadcast_data(sock,"* user has left %s: %s\n" % (room,CONNECTION_LIST[sock]["name"]),room)
+						broadcast_data(sock,"* user has left %s: %s\n" % (room,CONNECTION_LIST[sock]["name"]),room, [])
 						private_message(sock,"* user has left %s: %s (** this is you)\n" % (room,CONNECTION_LIST[sock]["name"]))
 						del CONNECTION_LIST[sock]["room"]
 						rooms[room] = rooms[room] - 1	
 					else: 
-                        			broadcast_data(server_socket, "%s: %s\n" % (CONNECTION_LIST[sock]["name"], data),CONNECTION_LIST[sock]["room"])
+                        			broadcast_data(server_socket, "%s: %s\n" % (CONNECTION_LIST[sock]["name"], data),CONNECTION_LIST[sock]["room"], CONNECTION_LIST[sock]["blocked_by"] )
 				else:
 					if data.strip() == "/rooms":
 						reply = 'Active rooms are:\n'
@@ -120,15 +170,12 @@ if __name__ == "__main__":
 											users = users + "* %s\n" % CONNECTION_LIST[user]["name"]
                                                 	users = users + "end of list.\n"
 							private_message(sock, users)
-							broadcast_data(sock,"* new user joined chat: %s\n" % CONNECTION_LIST[sock]["name"], room)
+							broadcast_data(sock,"* new user joined chat: %s\n" % CONNECTION_LIST[sock]["name"], room, [])
 						else:
 							rooms[room] = 1
 							CONNECTION_LIST[sock]["room"] = room
                 #except:
-                   # broadcast_data(sock, "Client (%s, %s) is offline" % addr)
-                   # print "Client (%s, %s) is offline" % addr
-                   # sock.close()
-                   # del CONNECTION_LIST[sock]
-                   # continue
+			#cleanup(sock)
+                        #continue
      
     server_socket.close()
