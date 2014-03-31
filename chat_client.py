@@ -49,7 +49,7 @@ if __name__ == "__main__":
             else :
 		try:
                 	msg = sys.stdin.readline()
-                	s.send(msg[:-1])
+                	s.send(msg)
                 	prompt()
 		except:
 			s.send("/quit")
